@@ -1,0 +1,7 @@
+# Игнорировать файл config.json
+config.json
+__debug_bin*
+.exe
+bin
+__debug_bin*
+
