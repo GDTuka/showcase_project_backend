@@ -12,6 +12,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	{
 		auth.POST("/register", h.Register)
 		auth.POST("/login", h.Login)
+		auth.POST("/refresh", h.RefreshToken)
 	}
 
 	// Utils routes

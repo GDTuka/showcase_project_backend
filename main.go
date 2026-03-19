@@ -26,7 +26,7 @@ func main() {
 
 	// Dependency Injection Setup
 	repo := repository.NewRepository(db.DB)
-	services := service.NewService(repo)
+	services := service.NewService(repo, cfg)
 	h := handler.NewHandler(services)
 
 	// Set up Gin router

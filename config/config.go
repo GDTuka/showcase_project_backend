@@ -8,6 +8,7 @@ import (
 type Config struct {
 	Server   ServerConfig   `json:"server"`
 	Database DatabaseConfig `json:"database"`
+	JWT      JWTConfig      `json:"jwt"`
 }
 
 type ServerConfig struct {
@@ -16,6 +17,10 @@ type ServerConfig struct {
 
 type DatabaseConfig struct {
 	Path string `json:"path"`
+}
+
+type JWTConfig struct {
+	Secret string `json:"secret"`
 }
 
 func LoadConfig(filename string) (*Config, error) {
