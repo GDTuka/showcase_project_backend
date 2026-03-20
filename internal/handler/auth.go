@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"showcase_project/data/request/auth"
 
@@ -53,13 +54,21 @@ func (h *Handler) Login(c *gin.Context) {
 }
 
 func (h *Handler) RefreshToken(c *gin.Context) {
-	var req auth.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
 		return
 	}
 
-	at, rt, appErr := h.service.Auth.RefreshToken(req.RefreshToken)
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header format must be Bearer {token}"})
+		return
+	}
+
+	refreshToken := parts[1]
+
+	at, rt, appErr := h.service.Auth.RefreshToken(refreshToken)
 	if appErr != nil {
 		c.JSON(appErr.Code(), gin.H{"error": appErr.Error()})
 		return

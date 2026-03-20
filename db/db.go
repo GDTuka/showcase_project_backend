@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"os"
 
 	"showcase_project/config"
 
@@ -18,16 +19,12 @@ func InitDB(cfg *config.Config) error {
 		return fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// Create tables if not exists
-	schema := `
-	CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		login TEXT UNIQUE NOT NULL,
-		phone TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-	`
+	// Read SQL schema from file
+	schemaBytes, err := os.ReadFile("db/db_sql.sql")
+	if err != nil {
+		return fmt.Errorf("failed to read schema file: %w", err)
+	}
+	schema := string(schemaBytes)
 	_, err = DB.Exec(schema)
 	if err != nil {
 		return fmt.Errorf("failed to create tables: %w", err)

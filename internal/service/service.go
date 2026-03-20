@@ -9,8 +9,6 @@ import (
 	"showcase_project/data/request/utils"
 	e "showcase_project/internal/error_service"
 	"showcase_project/internal/repository"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Auth interface {
@@ -28,34 +26,42 @@ type Service struct {
 	Auth
 	Utils
 	JWT
+	User
 }
 
 func NewService(repo *repository.Repository, cfg *config.Config) *Service {
 	jwtService := NewJWTService(cfg)
+	userService := NewUserService(repo.User)
 	return &Service{
-		Auth:  NewAuthService(repo.Auth, jwtService),
+		Auth:  NewAuthService(repo.Auth, jwtService, repo.User),
 		Utils: NewUtilsService(repo.Utils),
 		JWT:   jwtService,
+		User:  userService,
 	}
 }
 
 // Auth Service
 type AuthService struct {
-	repo repository.Auth
-	jwt  JWT
+	repo     repository.Auth
+	jwt      JWT
+	userRepo repository.User
 }
 
-func NewAuthService(repo repository.Auth, jwt JWT) *AuthService {
-	return &AuthService{repo: repo, jwt: jwt}
+func NewAuthService(repo repository.Auth, jwt JWT, userRepo repository.User) *AuthService {
+	return &AuthService{repo: repo, jwt: jwt, userRepo: userRepo}
 }
 
 func (s *AuthService) Register(req auth.RegisterRequest) (*int, *TokenDetails, *TokenDetails, e.IAppError) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, nil, nil, e.NewAppError(fmt.Errorf("failed to hash password"), 500)
+	// Verify SMS code
+	isValid, appErr := s.userRepo.CheckSmsCode(req.Phone, req.Code)
+	if appErr != nil {
+		return nil, nil, nil, appErr
+	}
+	if !isValid {
+		return nil, nil, nil, e.NewAppError(fmt.Errorf("invalid or expired SMS code"), 400)
 	}
 
-	userId, appErr := s.repo.Register(req, string(hashedPassword))
+	userId, appErr := s.repo.Register(req)
 	if appErr != nil {
 		return nil, nil, nil, appErr
 	}
@@ -69,17 +75,21 @@ func (s *AuthService) Register(req auth.RegisterRequest) (*int, *TokenDetails, *
 }
 
 func (s *AuthService) Login(req auth.LoginRequest) (*user.User, *TokenDetails, *TokenDetails, e.IAppError) {
-	u, err := s.repo.GetUserByLogin(req.Login)
-	if err != nil {
-		if err.Code() == 404 {
-			return nil, nil, nil, e.NewAppError(fmt.Errorf("invalid login or password"), 401)
-		}
-		return nil, nil, nil, err
+	// Verify SMS code
+	isValid, appErr := s.userRepo.CheckSmsCode(req.Phone, req.Code)
+	if appErr != nil {
+		return nil, nil, nil, appErr
+	}
+	if !isValid {
+		return nil, nil, nil, e.NewAppError(fmt.Errorf("invalid or expired SMS code"), 400)
 	}
 
-	cryptErr := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(req.Password))
-	if cryptErr != nil {
-		return nil, nil, nil, e.NewAppError(fmt.Errorf("invalid login or password"), 401)
+	u, err := s.repo.GetUserByPhone(req.Phone)
+	if err != nil {
+		if err.Code() == 404 {
+			return nil, nil, nil, e.NewAppError(fmt.Errorf("user not found"), 404)
+		}
+		return nil, nil, nil, err
 	}
 
 	at, rt, appErr := s.jwt.GenerateTokens(u.ID)
