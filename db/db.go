@@ -7,14 +7,14 @@ import (
 	"showcase_project/config"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var DB *sqlx.DB
 
 func InitDB(cfg *config.Config) error {
 	var err error
-	DB, err = sqlx.Connect("sqlite3", cfg.Database.Path)
+	DB, err = sqlx.Connect("sqlite", cfg.Database.Path)
 	if err != nil {
 		return fmt.Errorf("failed to connect database: %w", err)
 	}
